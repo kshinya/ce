@@ -659,6 +659,14 @@ class CAhandler(object):
                     # prepare the CSR
                     csr = build_pem_file(self.logger, None, b64_url_recode(self.logger, csr), None, True)
 
+
+                    params = {
+                        command: "P10CertReq",
+                        calID:"cal",
+                        policyID:"email",
+                        pkcs10: "",
+                        dname:"",
+                    }
                     # load ca cert and key
                     (ca_key, ca_cert) = self._ca_load()
 

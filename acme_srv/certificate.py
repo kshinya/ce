@@ -8,6 +8,7 @@ from acme_srv.helper import b64_url_recode, generate_random_string, cert_cn_get,
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
+import json
 
 
 class Certificate(object):
@@ -279,7 +280,7 @@ class Certificate(object):
         self.logger.debug('Certificate._csr_check() ended with %s', csr_check_result)
         return csr_check_result
 
-    def _enroll(self, csr: str, ca_handler: object) -> Tuple[str, str, str, str]:
+    def _enroll(self, csr: str, ca_handler: object, order_name:str) -> Tuple[str, str, str, str]:
         self.logger.debug('Certificate._enroll()')
         if self.cert_reusage_timeframe:
             (error, certificate, certificate_raw, poll_identifier) = self._cert_reusage_check(csr)
@@ -289,11 +290,19 @@ class Certificate(object):
 
         if not certificate or not certificate_raw:
             self.logger.debug('Certificate._enroll(): trigger enrollment')
-            (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr)
+            email = None
+            try:
+                order = self.dbstore.order_lookup("name", order_name, ['account__contact'])
+                emails = json.loads(order['account__contact'])
+                if emails:
+                    email = emails[0].replace('mailto:','')
+            except json.JSONDecodeError as e:
+                self.logger.error('invalid email address',e)
+            (error, certificate, certificate_raw, poll_identifier) = ca_handler.enroll(csr,email)
         else:
             self.logger.info('Certificate._enroll(): reuse existing certificate')
 
-        self.logger.debug('Certificate._enroll() ended')
+
         return (error, certificate, certificate_raw, poll_identifier)
 
     def _renewal_info_get(self, certificate: str) -> str:
@@ -402,7 +411,7 @@ class Certificate(object):
         with self.cahandler(self.debug, self.logger) as ca_handler:
 
             # enroll certificate
-            (error, certificate, certificate_raw, poll_identifier) = self._enroll(csr, ca_handler)
+            (error, certificate, certificate_raw, poll_identifier) = self._enroll(csr, ca_handler, order_name)
 
             if certificate:
                 (result, error) = self._store(certificate, certificate_raw, poll_identifier, certificate_name, order_name, csr)

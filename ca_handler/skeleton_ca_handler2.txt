@@ -1,0 +1,205 @@
+# -*- coding: utf-8 -*-
+""" skeleton for customized CA handler """
+from __future__ import print_function
+
+from select import select
+from typing import Tuple
+# pylint: disable=e0401
+from acme_srv.helper import load_config, header_info_get, csr_dn_get, error_dic_get
+import requests
+import xmltodict
+
+from acme_srv.kos_gateway import KosGatewayApi
+
+
+class CAhandler(object):
+    """ EST CA  handler """
+
+    def __init__(self, _debug: bool = None, logger: object = None):
+        self.logger = logger
+        self.err_msg_dic = error_dic_get(self.logger)
+        self.parameter = None
+        self.ca_id = None
+        self.policy_id = None
+        self.stage_id = None
+        self.kos_gw_url = None
+        self.client_cert = None
+        self.client_key = None
+
+    def __enter__(self):
+        """ Makes CAhandler a Context Manager """
+        if not self.parameter:
+            self._config_load()
+        return self
+
+    def __exit__(self, *args):
+        """ cose the connection at the end of the context """
+
+    def _config_load(self):
+        """" load config from file """
+        self.logger.debug('CAhandler._config_load()')
+
+        config_dic = load_config(self.logger, 'CAhandler')
+
+        print(config_dic['CAhandler']['ca_id'])
+
+        if 'CAhandler' in config_dic and 'parameter' in config_dic['CAhandler']:
+            self.parameter = config_dic['CAhandler']['parameter']
+
+        if 'CAhandler' in config_dic and 'ca_id' in config_dic['CAhandler']:
+            self.ca_id = config_dic['CAhandler']['ca_id']
+
+        if 'CAhandler' in config_dic and 'policy_id' in config_dic['CAhandler']:
+            self.policy_id = config_dic['CAhandler']['policy_id']
+
+        if 'CAhandler' in config_dic and 'stage_id' in config_dic['CAhandler']:
+            self.stage_id = config_dic['CAhandler']['stage_id']
+
+        if 'CAhandler' in config_dic and 'kos_gw_url' in config_dic['CAhandler']:
+            self.kos_gw_url = config_dic['CAhandler']['kos_gw_url']
+
+        if 'CAhandler' in config_dic and 'client_cert' in config_dic['CAhandler']:
+            self.client_cert = config_dic['CAhandler']['client_cert']
+
+        if 'CAhandler' in config_dic and 'client_key' in config_dic['CAhandler']:
+            self.client_key = config_dic['CAhandler']['client_key']
+
+        self.logger.debug('CAhandler._config_load() ended')
+
+    def prepare_dns_names(dns_names, cn):
+        limit = 51
+        uniq_dns_names = list(dict.fromkeys(dns_names))
+        if cn not in uniq_dns_names:
+            if len(uniq_dns_names) < limit:
+                uniq_dns_names.append(cn)
+        else:
+            uniq_dns_names[limit - 1] = cn
+        return uniq_dns_names[: limit]
+
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
+        """ enroll certificate  """
+        self.logger.debug('CAhandler.enroll()')
+
+        cert_bundle = None
+        error = None
+        cert_raw = None
+        poll_indentifier = None
+
+        dn = csr_dn_get(self.logger, csr)
+
+        if dn:
+            print("ca_id : ", self.ca_id)
+            print("policy_id : ", self.policy_id)
+            print("stage_id : ", self.stage_id)
+            print("kos_gw_url : ", self.kos_gw_url)
+            print("client_cert : ", self.client_cert)
+            print("DN:", dn)
+            print("client_key : ", self.client_key)
+
+            dname = self.prepare_dns_names([''])
+
+            data = {
+                'command': 'P10CertReq',
+                'caID': self.ca_id,
+                'policyID': self.policy_id,
+                'appBlob': '',
+                'dname': dname,
+                'notBefore': '',
+                'notAfter': '',
+                'pkcss10': csr,
+                'stageID': self.stage_id,
+                'statusEmail': '',  # DB: account.contact
+                'subID': '',
+                'dataString': '',
+                'cdataBytes': '',
+                'validateOnly': '',
+            }
+
+            encoded_data = '&'.join([f"{k}={v.encode('shift_jis').decode('latin1')}" for k, v in data.items()])
+            full_url = f"{self.kos_gw_url}?{encoded_data}"
+            try:
+                response = requests.get(full_url, cert=(self.client_cert, self.client_key))
+                if response.status_code == 200:
+                    print("success:", response.text)
+                    dict_data = xmltodict.parse(response.text)
+                    poll_indentifier = dict_data['reqID']
+                else:
+                    print("error:", response.status_code)
+                    error = self.err_msg_dic['serverinternal']
+            except requests.exceptions.RequestException as e:
+                print("network error:", e)
+                error = self.err_msg_dic['serverinternal']
+        else:
+            error = self.err_msg_dic['badcsr']
+
+        self.logger.debug('Certificate.enroll() ended')
+
+        return (error, cert_bundle, cert_raw, poll_indentifier)
+
+    def poll(self, cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
+        """ poll status of pending CSR and download certificates """
+        self.logger.debug('CAhandler.poll()')
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+        rejected = False
+
+        data = {
+            'command': 'GetReqDetail',
+            'reqID': poll_identifier,
+        }
+
+        KosGatewayApi.requestCertDetail()
+
+        encoded_data = '&'.join([f"{k}={v.encode('shift_jis').decode('latin1')}" for k, v in data.items()])
+        full_url = f"{self.kos_gw_url}?{encoded_data}"
+        try:
+            response = requests.get(full_url, cert=(self.client_cert, self.client_key))
+            if response.status_code == 200:
+                print("success:", response.text)
+                dict_data = xmltodict.parse(response.text)
+                if dict_data['certIssued'] == '1':
+                    data = {
+                        'command': 'CertDownload',
+                        'reqID': poll_identifier,
+                        'includeChain':'true'
+                    }
+                    encoded_data = '&'.join([f"{k}={v.encode('shift_jis').decode('latin1')}" for k, v in data.items()])
+                    full_url = f"{self.kos_gw_url}?{encoded_data}"
+                    response = requests.get(full_url, cert=(self.client_cert, self.client_key))
+                    if response.status_code == 200:
+
+
+            else:
+                print("error:", response.status_code)
+                error = self.err_msg_dic['serverinternal']
+        except requests.exceptions.RequestException as e:
+            print("network error:", e)
+            error = 'timeout'
+
+        self.logger.debug('CAhandler.poll() ended')
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
+
+    def revoke(self, _cert: str, _rev_reason: str, _rev_date: str) -> Tuple[int, str, str]:
+        """ revoke certificate """
+        self.logger.debug('CAhandler.revoke()')
+
+        code = 500
+        message = 'urn:ietf:params:acme:error:serverInternal'
+        detail = 'Revocation is not supported.'
+
+        self.logger.debug('Certificate.revoke() ended')
+        return (code, message, detail)
+
+    def trigger(self, payload: str) -> Tuple[str, str, str]:
+        """ process trigger message and return certificate """
+        self.logger.debug('CAhandler.trigger()')
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+
+
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
+        return (error, cert_bundle, cert_raw)

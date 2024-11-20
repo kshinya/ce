@@ -3,10 +3,19 @@
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
-from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now, error_dic_get, validate_identifier
+
+from cryptography.hazmat.primitives import serialization
+from var_dump import var_dump
+
+from acme_srv.helper import b64_url_recode, generate_random_string, load_config, parse_url, uts_to_date_utc, uts_now, \
+    error_dic_get, validate_identifier, cert_pem2der, print_debug
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
+from cryptography import x509
+import base64
+from cryptography.hazmat.backends import default_backend
+
 
 
 class Order(object):
@@ -331,7 +340,28 @@ class Order(object):
 
         if order_dic:
             # change decoding from b64url to b64
-            csr = b64_url_recode(self.logger, csr)
+            # csr = b64_url_recode(self.logger, csr)
+            #
+            # new_csr = "-----BEGIN CERTIFICATE REQUEST-----\n" + csr + "\n-----END CERTIFICATE REQUEST-----"
+            # test_cert = x509.load_pem_x509_csr(new_csr.encode("utf-8"), default_backend())
+            #
+            # # 公開鍵を取得
+            # public_key = test_cert.public_key()
+            #
+            # # 公開鍵をPEM形式でエクスポート
+            # public_key_pem = public_key.public_bytes(
+            #     encoding=serialization.Encoding.PEM,
+            #     format=serialization.PublicFormat.PKCS1
+            # )
+            #
+            # # 公開鍵を表示
+            # # print("Public Key in PEM format:\n", public_key_pem.decode("utf-8"))
+            # # print("signature:", str(test_cert.signature, encoding='utf-8'))
+            # # print("attributes:", test_cert.attributes)
+            # print("subject:", test_cert.subject)
+            #
+
+
 
             with Certificate(self.debug, self.server_name, self.logger) as certificate:
                 certificate_name = certificate.store_csr(order_name, csr, header_info)

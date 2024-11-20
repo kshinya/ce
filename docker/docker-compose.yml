@@ -1,38 +1,18 @@
 version: '3'
 services:
-  web:
-    container_name: app-nginx
-    image: nginx:latest
-    ports:
-      - "80:80"
-    depends_on:
-      - app
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ../:/var/www/
-  app:
-    container_name: app-php
-    build: ./php
-    volumes:
-      - ../:/var/www/
   mysql:
-    container_name: app-mysql
+    container_name: acme-mysql
     build: ./mysql
     environment:
-      MYSQL_DATABASE: apps
-      MYSQL_USER: apps
+      MYSQL_DATABASE: acme2certifier
+      MYSQL_USER: acme2certifier
       #MYSQL_USERのパスワード
-      MYSQL_PASSWORD: apps1234
+      MYSQL_PASSWORD: acme2certifier1234
       # MySQLにおけるスーパーユーザであるrootアカウントに設定するためのパスワード
-      MYSQL_ROOT_PASSWORD: develop
+      MYSQL_ROOT_PASSWORD: acme2certifierdevelop
     ports:
       - "43306:3306"
     volumes:
       - ./mysql/var_lib_mysql:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d
-  memcached:
-    container_name: app-memcached
-    image: memcached
-    ports:
-      - '11211:11211'
+

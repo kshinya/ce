@@ -4,7 +4,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "djangoProject.settings")
 import django  # nopep8
 django.setup()
 from django.core.management import call_command  # nopep8

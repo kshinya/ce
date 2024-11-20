@@ -42,6 +42,9 @@ class CAhandler(object):
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
 
+        self.logger.debug(csr)
+
+
         cert_bundle = None
         error = None
         cert_raw = None
