@@ -1,12 +1,21 @@
 from django.test import TestCase
+from pyasn1.type.base import Asn1Type
+from pyasn1.type.univ import ObjectIdentifier
+from pyasn1_modules.rfc2459 import UTF8String
 
 from acme_srv.helper import logger_setup
 from acme_srv.kos_ca_handler import CAhandler
+
 from cryptography import x509
-from cryptography.x509.oid import NameOID
+from cryptography.x509.oid import NameOID, ObjectIdentifier
+from cryptography import x509
+from cryptography.x509.oid import NameOID, ExtensionOID
+from cryptography.x509 import DNSName, IPAddress
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
+import ipaddress
+
 import re
 
 class CaTest(TestCase):
@@ -23,23 +32,38 @@ class CaTest(TestCase):
             key_size=2048,
         )
 
-        # CSRの情報を定義
-        csr_builder = x509.CertificateSigningRequestBuilder()
-        csr_builder = csr_builder.subject_name(x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, "example.com"),  # CN
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "My Organization"),  # O
-            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "IT Department"),  # OU
-            x509.NameAttribute(NameOID.COUNTRY_NAME, "JP"),  # C
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Tokyo"),  # ST
-            x509.NameAttribute(NameOID.LOCALITY_NAME, "Minato-ku"),  # L
+        csr_builder = x509.CertificateSigningRequestBuilder().subject_name(x509.Name([
+            x509.NameAttribute(NameOID.COUNTRY_NAME, "JP"),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Tokyo"),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, "Chiyoda-ku"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Example Organization"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "example.com"),
         ]))
 
-        # CSRに署名
-        csr = csr_builder.sign(
+        custom_oid = ObjectIdentifier("1.2.392.200081.10.1.1.5.1.2")
+        # custom_extension = x509.UnrecognizedExtension(custom_oid, b"www.10.com,www.11.com,www.12.com")
+        # csr_builder = csr_builder.add_extension(custom_extension, critical=False)
+
+        san_extension = x509.SubjectAlternativeName([
+            DNSName("example.com"),
+            # DNSName("www.example.com"),
+            IPAddress(ipaddress.IPv4Address("192.168.1.1")),
+            # IPAddress(ipaddress.IPv6Address("::1")),
+        ])
+
+
+        csr = csr_builder.add_extension(san_extension, critical=False).sign(
             private_key, hashes.SHA256()
         )
+
+        print(csr.public_bytes(serialization.Encoding.PEM).decode("utf-8"))
         # CSRをPEM形式で出力
-        self.csr = re.sub(r"-----.*?-----\n", '', csr.public_bytes(serialization.Encoding.PEM).decode("utf-8")) + "\n"
+        self.csr = re.sub(r"-----.*?-----\n", '', csr.public_bytes(serialization.Encoding.PEM).decode("utf-8"))
+
+
+        print("CSR")
+        print(self.csr)
+        print("CSR")
 
 
         # テスト用のデータを作成

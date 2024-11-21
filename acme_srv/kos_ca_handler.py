@@ -2,12 +2,21 @@
 """ skeleton for customized CA handler """
 from __future__ import print_function
 
+from cryptography.x509 import IPAddress
+
 # pylint: disable=e0401
 from acme_srv.helper import load_config, csr_dn_get, error_dic_get, csr_cn_get, csr_load
 import requests
 import xmltodict
 from typing import List, Tuple
 import json
+import re
+
+from cryptography import x509
+from cryptography.x509.oid import NameOID, ObjectIdentifier
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 
 
 class CAhandler(object):
@@ -135,36 +144,55 @@ class CAhandler(object):
             }
             (error, response_data) = self._request(data)
             if not error:
-                cert_bundle = response_data['kos-gateway']['req-detail']['chain'] # PKCS7
+                cert_bundle = response_data['kos-gateway']['req-detail']['chain']  # PKCS7
                 cert_raw = response_data['kos-gateway']['req-detail']['cert']
 
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
-    def _prepare_dns_names(dns_names: List[str], cn: str):
+    def _prepare_dns_names(self, dns_names: List[str], cn: str):
         limit = 51
         uniq_dns_names = list(dict.fromkeys(dns_names))
         if cn not in uniq_dns_names:
             if len(uniq_dns_names) < limit:
                 uniq_dns_names.append(cn)
-        else:
-            uniq_dns_names[limit - 1] = cn
-        return uniq_dns_names[: limit]
+            else:
+                uniq_dns_names[limit - 1] = cn
+        return ','.join(uniq_dns_names[: limit])
+
+    def _get_ipv4(self, ip_addresses: List[IPAddress]):
+        return next((ip for ip in ip_addresses if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", str(ip))), "")
 
     def _create_dname(self, csr: str):
 
         cn = csr_cn_get(self.logger, csr)
-        subject = csr_load(self.logger, csr).subject
-        subject_dict = {attribute.oid._name: attribute.value for attribute in subject}
+        csr_object = csr_load(self.logger, csr)
+        subject_dict = {attribute.oid._name: attribute.value for attribute in csr_object.subject}
 
-        self.logger.debug(subject_dict)
+        # dns_oid = "1.2.392.200081.10.1.1.5.1.2"
+        # ip_oid = "IP Address"
+        # dns_names = csr_object.extensions.get_extension_for_oid(ObjectIdentifier(dns_oid)).value.value.decode(
+        #     'utf-8').split(",")
+        # ip_addresses = csr_object.extensions.get_extension_for_oid(ObjectIdentifier(ip_oid)).value.value.decode(
+        #     'utf-8').split(",")
+
+        san = csr_object.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+
+        dns_names = san.value.get_values_for_type(x509.general_name.DNSName)
+        ip_addresses = san.value.get_values_for_type(x509.general_name.IPAddress)
+
+        self.logger.debug('dns_names : %s', dns_names)
+        self.logger.debug('ip_addresses : %s', ip_addresses)
+        self.logger.debug('subject_dict : %s', subject_dict)
+        self.logger.debug('dns_names : %s', self._prepare_dns_names(dns_names, cn))
+
         dname_param = {
             'cn': cn,
             'o': subject_dict.get('organizationName'),
             'l': subject_dict.get('localityName'),
             's': subject_dict.get('stateOrProvinceName'),
             'c': subject_dict.get('countryName', 'JP'),
-            'dNSName': '', # self._prepare_dns_names([], cn)
-            'IPAddress': '',
+            'dNSName': self._prepare_dns_names(dns_names, cn),
+            'IPAddress': self._get_ipv4(ip_addresses)
         }
         return ",".join(f"{key}={value}" for key, value in dname_param.items() if value)
 
