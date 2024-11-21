@@ -118,7 +118,7 @@ class CAhandler(object):
 
         (error, response_data) = self._request(data)
         if not error:
-            result = response_data['kos-gateway']['certIssued'] == '1'
+            result = response_data['kos-gateway']['req-detail']['certIssued'] == '1'
 
         return (error, result)
 
@@ -135,8 +135,8 @@ class CAhandler(object):
             }
             (error, response_data) = self._request(data)
             if not error:
-                cert_bundle = response_data['kos-gateway']['']['']
-                cert_raw = response_data['kos-gateway']['']['']
+                cert_bundle = response_data['kos-gateway']['req-detail']['chain'] # PKCS7
+                cert_raw = response_data['kos-gateway']['req-detail']['cert']
 
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
@@ -162,8 +162,9 @@ class CAhandler(object):
             'o': subject_dict.get('organizationName'),
             'l': subject_dict.get('localityName'),
             's': subject_dict.get('stateOrProvinceName'),
-            'c:': subject_dict.get('countryName', 'JP')
-            # self._prepare_dns_names([], cn)
+            'c': subject_dict.get('countryName', 'JP'),
+            'dNSName': '', # self._prepare_dns_names([], cn)
+            'IPAddress': '',
         }
         return ",".join(f"{key}={value}" for key, value in dname_param.items() if value)
 
