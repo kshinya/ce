@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_database_prefix',
-    'acme_srv'
+    'acme_srv',
 ]
 
 MIDDLEWARE = [

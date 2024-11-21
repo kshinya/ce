@@ -3,10 +3,11 @@
 from __future__ import print_function
 
 # pylint: disable=e0401
-from acme_srv.helper import load_config, csr_dn_get, error_dic_get
+from acme_srv.helper import load_config, csr_dn_get, error_dic_get, csr_cn_get
 import requests
 import xmltodict
-from typing import List, Dict, Tuple
+from typing import List, Tuple
+import json
 
 
 class CAhandler(object):
@@ -38,8 +39,6 @@ class CAhandler(object):
 
         config_dic = load_config(self.logger, 'CAhandler')
 
-        print(config_dic['CAhandler']['ca_id'])
-
         if 'CAhandler' in config_dic and 'parameter' in config_dic['CAhandler']:
             self.parameter = config_dic['CAhandler']['parameter']
 
@@ -63,6 +62,85 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._config_load() ended')
 
+    # KOSGatewayと通信する
+    def _request(self, query_data: dict):
+        error = None
+        response_data = None
+        try:
+            query = '&'.join([f"{k}={v.encode('shift_jis').decode('latin1')}" for k, v in query_data.items()])
+            full_url = f"{self.kos_gw_url}?{query}"
+            if self.kos_gw_url:
+                response = requests.get(full_url, cert=(self.client_cert, self.client_key))
+                if response.status_code == 200:
+                    self.logger.debug("success: %s", response.text)
+                    response_data = xmltodict.parse(response.text)
+                else:
+                    self.logger.debug("error: %d", response.status_code)
+                    error = self.err_msg_dic['serverinternal']
+            else:
+                return ("empty kos_gw_url", response_data)
+        except requests.exceptions.RequestException as e:
+            self.logger.debug("network error:", e)
+            # 種別によってtimeout
+            error = self.err_msg_dic['serverinternal']
+
+        return (error, response_data)
+
+    # KOSGatewayに証明書を申請するクエリパラメータを作成する
+    def _request_cert_query_data(self, csr: str, dname: str, email: str):
+
+
+        data = {
+            'command': 'P10CertReq',
+            'caID': self.ca_id,
+            'policyID': self.policy_id,
+            'appBlob': '',
+            'dname': dname,
+            'notBefore': '',
+            'notAfter': '',
+            'pkcss10': csr,
+            'stageID': self.stage_id,
+            'statusEmail': email,  # DB: account.contact
+            'subID': '',
+            'dataString': '',
+            'cdataBytes': '',
+            'validateOnly': '',
+        }
+
+        self.logger.debug('request_cert : %s',json.dumps(data, indent=4, ensure_ascii=False))
+        return data
+
+    def _check_cert(self, poll_identifier: str):
+        result = False
+        data = {
+            'command': 'GetReqDetail',
+            'reqID': poll_identifier,
+        }
+
+        (error, response_data) = self._request(data)
+        if not error:
+            result = response_data['kos-gateway']['certIssued'] == '1'
+
+        return (error, result)
+
+    def _download_cert(self, poll_identifier: str):
+        cert_bundle = None
+        cert_raw = None
+        rejected = False
+        (error, result) = self._check_cert(poll_identifier)
+        if result:
+            data = {
+                'command': 'CertDownload',
+                'reqID': poll_identifier,
+                'includeChain': 'true'
+            }
+            (error, response_data) = self._request(data)
+            if not error:
+                cert_bundle = response_data['kos-gateway']['']['']
+                cert_raw = response_data['kos-gateway']['']['']
+
+        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
+
     def _prepare_dns_names(dns_names: List[str], cn: str):
         limit = 51
         uniq_dns_names = list(dict.fromkeys(dns_names))
@@ -73,110 +151,26 @@ class CAhandler(object):
             uniq_dns_names[limit - 1] = cn
         return uniq_dns_names[: limit]
 
-    def _requestCert(self, csr: str, email: str):
-
-        dn = csr_dn_get(self.logger, csr)
-
-        poll_indentifier = None
-        error = None
-
-        self.logger.debug("ca_id : ", self.ca_id)
-        self.logger.debug("policy_id : ", self.policy_id)
-        self.logger.debug("stage_id : ", self.stage_id)
-        self.logger.debug("kos_gw_url : ", self.kos_gw_url)
-        self.logger.debug("client_cert : ", self.client_cert)
-        self.logger.debug("DN:", dn)
-        self.logger.debug("client_key : ", self.client_key)
-
-        if dn:
-            dname = 'aaa.com' #self._prepare_dns_names([''])
-            data = {
-                'command': 'P10CertReq',
-                'caID': self.ca_id,
-                'policyID': self.policy_id,
-                'appBlob': '',
-                'dname': dname,
-                'notBefore': '',
-                'notAfter': '',
-                'pkcss10': csr,
-                'stageID': self.stage_id,
-                'statusEmail': email,  # DB: account.contact
-                'subID': '',
-                'dataString': '',
-                'cdataBytes': '',
-                'validateOnly': '',
-            }
-            encoded_data = '&'.join([f"{k}={v.encode('shift_jis').decode('latin1')}" for k, v in data.items()])
-            full_url = f"{self.kos_gw_url}?{encoded_data}"
-            try:
-                response = requests.get(full_url, cert=(self.client_cert, self.client_key))
-                if response.status_code == 200:
-                    self.logger.debug("success:", response.text)
-                    response_dict_data = xmltodict.parse(response.text)
-                    poll_indentifier = response_dict_data['reqID']
-                else:
-                    self.logger.debug("error:", response.status_code)
-                    error = self.err_msg_dic['serverinternal']
-            except requests.exceptions.RequestException as e:
-                self.logger.debug("network error:", e)
-                error = self.err_msg_dic['serverinternal']
-        else:
-            error = self.err_msg_dic['badcsr']
-        return (error, poll_indentifier)
-
-    def _checkCert(self, poll_identifier: str):
-        error = None
-        result = False
-        data = {
-            'command': 'GetReqDetail',
-            'reqID': poll_identifier,
-        }
-        encoded_data = '&'.join([f"{k}={v.encode('shift_jis').decode('latin1')}" for k, v in data.items()])
-        full_url = f"{self.kos_gw_url}?{encoded_data}"
-        try:
-            response = requests.get(full_url, cert=(self.client_cert, self.client_key))
-            if response.status_code == 200:
-                self.logger.debug("success:", response.text)
-                response_dict_data = xmltodict.parse(response.text)
-                result = response_dict_data['certIssued'] == '1'
-            else:
-                self.logger.debug("error:", response.status_code)
-                error = self.err_msg_dic['serverinternal']
-        except requests.exceptions.RequestException as e:
-            self.logger.debug("network error:", e)
-            error = 'timeout'
-
-        return (error, result)
-
-    def _downloadCert(self, poll_identifier: str):
-        cert_bundle = None
-        cert_raw = None
-        rejected = False
-        (error, result) = self._checkCert(poll_identifier)
-        if result:
-            data = {
-                'command': 'CertDownload',
-                'reqID': poll_identifier,
-                'includeChain': 'true'
-            }
-            encoded_data = '&'.join(
-                [f"{k}={v.encode('shift_jis').decode('latin1')}" for k, v in data.items()])
-            full_url = f"{self.kos_gw_url}?{encoded_data}"
-            response = requests.get(full_url, cert=(self.client_cert, self.client_key))
-            if response.status_code == 200:
-                response_dict_data = xmltodict.parse(response.text)
-
-        return (error, cert_bundle, cert_raw, poll_identifier, rejected)
-
     def enroll(self, csr: str, email: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
 
         cert_bundle = None
         cert_raw = None
+        poll_indentifier = None
 
-        (error, poll_indentifier) = self._requestCert(csr, email)
+        cn = csr_cn_get(self.logger, csr)
 
+        self.logger.debug("cn: %s", cn)
+
+        if not cn:
+            error = self.err_msg_dic['badcsr']
+        else:
+            dname = ''
+            query_data = self._request_cert_query_data(csr, dname, email)
+            (error, response_data) = self._request(query_data)
+            if not error:
+                poll_indentifier = response_data['kos-gateway']['req-detail']['reqID']
         self.logger.debug('Certificate.enroll() ended')
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
@@ -184,7 +178,7 @@ class CAhandler(object):
         """ poll status of pending CSR and download certificates """
         self.logger.debug('CAhandler.poll()')
 
-        (error, cert_bundle, cert_raw, poll_identifier, rejected) = self._downloadCert(poll_identifier)
+        (error, cert_bundle, cert_raw, poll_identifier, rejected) = self._download_cert(poll_identifier)
 
         self.logger.debug('CAhandler.poll() ended')
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
