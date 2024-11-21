@@ -3,7 +3,7 @@
 from __future__ import print_function
 
 # pylint: disable=e0401
-from acme_srv.helper import load_config, csr_dn_get, error_dic_get, csr_cn_get
+from acme_srv.helper import load_config, csr_dn_get, error_dic_get, csr_cn_get, csr_load
 import requests
 import xmltodict
 from typing import List, Tuple
@@ -89,7 +89,6 @@ class CAhandler(object):
     # KOSGatewayに証明書を申請するクエリパラメータを作成する
     def _request_cert_query_data(self, csr: str, dname: str, email: str):
 
-
         data = {
             'command': 'P10CertReq',
             'caID': self.ca_id,
@@ -107,7 +106,7 @@ class CAhandler(object):
             'validateOnly': '',
         }
 
-        self.logger.debug('request_cert : %s',json.dumps(data, indent=4, ensure_ascii=False))
+        self.logger.debug('request_cert : %s', json.dumps(data, indent=4, ensure_ascii=False))
         return data
 
     def _check_cert(self, poll_identifier: str):
@@ -151,6 +150,23 @@ class CAhandler(object):
             uniq_dns_names[limit - 1] = cn
         return uniq_dns_names[: limit]
 
+    def _create_dname(self, csr: str):
+
+        cn = csr_cn_get(self.logger, csr)
+        subject = csr_load(self.logger, csr).subject
+        subject_dict = {attribute.oid._name: attribute.value for attribute in subject}
+
+        self.logger.debug(subject_dict)
+        dname_param = {
+            'cn': cn,
+            'o': subject_dict.get('organizationName'),
+            'l': subject_dict.get('localityName'),
+            's': subject_dict.get('stateOrProvinceName'),
+            'c:': subject_dict.get('countryName', 'JP')
+            # self._prepare_dns_names([], cn)
+        }
+        return ",".join(f"{key}={value}" for key, value in dname_param.items() if value)
+
     def enroll(self, csr: str, email: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -166,7 +182,7 @@ class CAhandler(object):
         if not cn:
             error = self.err_msg_dic['badcsr']
         else:
-            dname = ''
+            dname = self._create_dname(csr)
             query_data = self._request_cert_query_data(csr, dname, email)
             (error, response_data) = self._request(query_data)
             if not error:
