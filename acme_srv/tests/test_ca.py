@@ -71,7 +71,9 @@ class CaTest(TestCase):
 
 
     def test_dname(self):
-        self.assertEqual(self.ca_handler._create_dname(self.csr),"cn=,o=My Organization,l=Tokyo,s=Minato-ku,c=JP")
+        data = self.ca_handler._create_dname(self.csr)
+        print(data)
+        self.assertEqual(data,"cn=,o=My Organization,l=Tokyo,s=Minato-ku,c=JP")
 
     # def test_request_query(self):
     #     self.assertEqual(self.ca_handler._request_cert_query_data(self.csr, self.dname, self.email))

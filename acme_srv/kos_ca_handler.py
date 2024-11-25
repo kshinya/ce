@@ -5,7 +5,7 @@ from __future__ import print_function
 from cryptography.x509 import IPAddress
 
 # pylint: disable=e0401
-from acme_srv.helper import load_config, csr_dn_get, error_dic_get, csr_cn_get, csr_load
+from acme_srv.helper import load_config, csr_dn_get, error_dic_get, csr_cn_get, csr_load, csr_san_get, header_info_get
 import requests
 import xmltodict
 from typing import List, Tuple
@@ -159,8 +159,8 @@ class CAhandler(object):
                 uniq_dns_names[limit - 1] = cn
         return ','.join(uniq_dns_names[: limit])
 
-    def _get_ipv4(self, ip_addresses: List[IPAddress]):
-        return next((ip for ip in ip_addresses if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", str(ip))), "")
+    def _get_ipv4(self, ip_addresses: List[str]):
+        return next((ip for ip in ip_addresses if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", ip)), "")
 
     def _create_dname(self, csr: str):
 
@@ -168,17 +168,9 @@ class CAhandler(object):
         csr_object = csr_load(self.logger, csr)
         subject_dict = {attribute.oid._name: attribute.value for attribute in csr_object.subject}
 
-        # dns_oid = "1.2.392.200081.10.1.1.5.1.2"
-        # ip_oid = "IP Address"
-        # dns_names = csr_object.extensions.get_extension_for_oid(ObjectIdentifier(dns_oid)).value.value.decode(
-        #     'utf-8').split(",")
-        # ip_addresses = csr_object.extensions.get_extension_for_oid(ObjectIdentifier(ip_oid)).value.value.decode(
-        #     'utf-8').split(",")
-
-        san = csr_object.extensions.get_extension_for_class(x509.SubjectAlternativeName)
-
-        dns_names = san.value.get_values_for_type(x509.general_name.DNSName)
-        ip_addresses = san.value.get_values_for_type(x509.general_name.IPAddress)
+        san = csr_san_get(self.logger, csr)
+        dns_names =  [item[4:] for item in san if item.startswith('DNS:')]
+        ip_addresses =  [item[3:] for item in san if item.startswith('IP:')]
 
         self.logger.debug('dns_names : %s', dns_names)
         self.logger.debug('ip_addresses : %s', ip_addresses)
@@ -196,7 +188,7 @@ class CAhandler(object):
         }
         return ",".join(f"{key}={value}" for key, value in dname_param.items() if value)
 
-    def enroll(self, csr: str, email: str) -> Tuple[str, str, str, str]:
+    def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
 
@@ -206,7 +198,18 @@ class CAhandler(object):
 
         cn = csr_cn_get(self.logger, csr)
 
+        certificates = header_info_get(self.logger, csr, ('id', 'name', 'order__id', 'order__account__contact'))
+
         self.logger.debug("cn: %s", cn)
+        self.logger.debug("certificates: %s", certificates)
+
+        email = None
+        try:
+            emails = json.loads(certificates[0]['order__account__contact'])
+            if emails:
+                email = emails[0].replace('mailto:', '')
+        except json.JSONDecodeError as e:
+            self.logger.error('invalid email address', e)
 
         if not cn:
             error = self.err_msg_dic['badcsr']
