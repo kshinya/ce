@@ -44,14 +44,14 @@ M8Mr5TFg7B+Y7OJkAono9k7g2BbK4MiuCHNrKvmihM4UenX6M/ZmkYAALZBAGLT3
 vCObzoxLmG7kZNufn2+h0oo=
 -----END PRIVATE KEY-----'''
 
+
 class CaTest(TestCase):
 
     def setUp(self):
-
         self.debug = False
-        print(key.encode("utf-8"))
+        print(key.encode('utf-8'))
         self.private_key = serialization.load_pem_private_key(
-            key.encode("utf-8"),
+            key.encode('utf-8'),
             password=None  # パスフレーズがある場合はここに渡す
         )
 
@@ -59,7 +59,6 @@ class CaTest(TestCase):
         #     public_exponent=65537,
         #     key_size=2048,
         # )
-
 
         # self.logger = logger_setup(self.debug)
         import logging
@@ -71,7 +70,6 @@ class CaTest(TestCase):
         with CAhandler(self.debug, self.logger) as ca_handler:
             self.ca_handler = ca_handler
 
-
     def gen_pem_private_key(self):
         pem = rsa.generate_private_key(
             public_exponent=65537,
@@ -81,11 +79,10 @@ class CaTest(TestCase):
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption()
         )
-        print(pem.decode("utf-8"))
+        print(pem.decode('utf-8'))
         return pem
 
     def create_csr(self, names: [x509.NameAttribute], option: []) -> str:
-
         csr_builder = x509.CertificateSigningRequestBuilder().subject_name(x509.Name(names))
         san_extension = x509.SubjectAlternativeName(option)
         csr = csr_builder.add_extension(san_extension, critical=False).sign(
@@ -94,9 +91,8 @@ class CaTest(TestCase):
         der_csr = csr.public_bytes(serialization.Encoding.DER)
         return base64.b64encode(der_csr).decode('utf-8')
 
-
     @patch('acme_srv.kos_ca_handler.requests.get')
-    def test_001(self,mock_get):
+    def test_001(self, mock_get):
         req_id = 'AA***AA'
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -107,25 +103,183 @@ class CaTest(TestCase):
         dns_names = [DNSName(f"sub{i:02}.example.com") for i in range(5, 15)]
 
         csr = self.create_csr([
-            x509.NameAttribute(NameOID.COMMON_NAME, "www1.com"),
-            x509.NameAttribute(NameOID.COUNTRY_NAME, "JP"),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Tokyo"),
-            x509.NameAttribute(NameOID.LOCALITY_NAME, "Chiyoda-ku"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Example Organization"),
+            x509.NameAttribute(NameOID.COMMON_NAME, 'www1.com'),
+            x509.NameAttribute(NameOID.COUNTRY_NAME, 'JP'),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, 'Tokyo'),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, 'Chiyoda-ku'),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, 'Example Organization'),
         ], [
-            DNSName("example.com"),
-            #     # DNSName("www.example.com"),
-                IPAddress(ipaddress.IPv4Address("192.168.1.1")),
-            #     # IPAddress(ipaddress.IPv6Address("::1")),
-        ] + [DNSName(f"sub{i}.example.com") for i in range(5, 15)])
+               DNSName('example.com'),
+               #     # DNSName('www.example.com'),
+               IPAddress(ipaddress.IPv4Address('192.168.1.1')),
+               #     # IPAddress(ipaddress.IPv6Address('::1')),
+           ] + [DNSName(f"sub{i}.example.com") for i in range(5, 15)])
 
         self.assertEqual(self.ca_handler.enroll(csr), (None, None, None, req_id))
 
         mock_get.assert_called_once_with(
-            "https://localhost?param1=value1",
-            cert=("", "")
+            'https://localhost?param1=value1',
+            cert=('', '')
         )
 
+    @patch('acme_srv.kos_ca_handler.requests.get')
+    def test__001(self, mock_get):
+        mock_response = MagicMock()
 
+        self.ca_handler.email = 'hoge@hoge.com'
 
+        csr = self.create_csr(
+            [
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "JP"),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Tokyo"),
+                x509.NameAttribute(NameOID.LOCALITY_NAME, "Chiyoda-ku"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Example Organization")
+            ],
+            [
+                DNSName('www1.hoge.com'),
+                DNSName('www2.hoge.com'),
+                DNSName('www1.hoge.com'),
+                DNSName('www2.hoge.com'),
+                DNSName('www3.hoge.com'),
+                DNSName('www4.hoge.com'),
+                DNSName('www5.hoge.com'),
+                DNSName('www6.hoge.com'),
+                DNSName('www7.hoge.com'),
+                DNSName('www8.hoge.com'),
+                DNSName('www9.hoge.com'),
+                DNSName('www10.hoge.com'),
+                DNSName('www11.hoge.com'),
+                DNSName('www12.hoge.com'),
+                DNSName('www13.hoge.com'),
+                DNSName('www14.hoge.com'),
+                DNSName('www15.hoge.com'),
+                DNSName('www16.hoge.com'),
+                DNSName('www17.hoge.com'),
+                DNSName('www18.hoge.com'),
+                DNSName('www19.hoge.com'),
+                DNSName('www20.hoge.com'),
+                IPAddress(ipaddress.IPv4Address("192.168.0.1"))
+            ]
+        )
 
+        self.assertEqual(self.ca_handler.enroll(csr), (('urn:ietf:params:acme:error:badCSR', None, None, None)))
+
+    @patch('acme_srv.kos_ca_handler.requests.get')
+    def test__002(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "<kos-gateway><req-detail><reqID>R123456789</reqID></req-detail></kos-gateway>"
+        mock_get.return_value = mock_response
+
+        self.ca_handler.email = 'hoge@hoge.com'
+
+        csr = self.create_csr(
+            [
+                x509.NameAttribute(NameOID.COMMON_NAME, "sample.com"),
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "JP"),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Tokyo"),
+                x509.NameAttribute(NameOID.LOCALITY_NAME, "Chiyoda-ku"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Example Organization")
+            ],
+            [
+                DNSName('www1.hoge.com'),
+                DNSName('www2.hoge.com'),
+                DNSName('www01.hoge.com'),
+                DNSName('www02.hoge.com'),
+                DNSName('www03.hoge.com'),
+                DNSName('www04.hoge.com'),
+                DNSName('www05.hoge.com'),
+                DNSName('www06.hoge.com'),
+                DNSName('www07.hoge.com'),
+                DNSName('www08.hoge.com'),
+                DNSName('www09.hoge.com'),
+                DNSName('www10.hoge.com'),
+                DNSName('www11.hoge.com'),
+                DNSName('www12.hoge.com'),
+                DNSName('www13.hoge.com'),
+                DNSName('www14.hoge.com'),
+                DNSName('www15.hoge.com'),
+                DNSName('www16.hoge.com'),
+                DNSName('www17.hoge.com'),
+                DNSName('www18.hoge.com'),
+                DNSName('www19.hoge.com'),
+                DNSName('www20.hoge.com'),
+                IPAddress(ipaddress.IPv4Address("192.168.0.1"))
+            ]
+        )
+
+        self.assertEqual(self.ca_handler.enroll(csr), ((None, None, None, 'R123456789')))
+        mock_get.assert_called_once_with("ca=CA2", cert=("", ""))
+
+    @patch('acme_srv.kos_ca_handler.requests.get')
+    def test__003(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "<kos-gateway><req-detail><reqID>R123456789</reqID></req-detail></kos-gateway>"
+        mock_get.return_value = mock_response
+
+        self.ca_handler.email = 'hoge@hoge.com'
+
+        csr = self.create_csr(
+            [
+                x509.NameAttribute(NameOID.COMMON_NAME, "sample.com"),
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "JP"),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Tokyo"),
+                x509.NameAttribute(NameOID.LOCALITY_NAME, "Chiyoda-ku"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Example Organization")
+            ],
+            [
+                DNSName('www1.hoge.com'),
+                DNSName('www2.hoge.com'),
+                DNSName('www3.hoge.com'),
+                DNSName('www4.hoge.com'),
+                DNSName('www5.hoge.com'),
+                DNSName('www6.hoge.com'),
+                DNSName('www7.hoge.com'),
+                DNSName('www8.hoge.com'),
+                DNSName('www9.hoge.com'),
+                DNSName('www10.hoge.com'),
+                DNSName('www11.hoge.com'),
+                DNSName('www12.hoge.com'),
+                DNSName('www13.hoge.com'),
+                DNSName('www14.hoge.com'),
+                DNSName('www15.hoge.com'),
+                DNSName('www16.hoge.com'),
+                DNSName('www17.hoge.com'),
+                DNSName('www18.hoge.com'),
+                DNSName('www19.hoge.com'),
+                DNSName('www20.hoge.com'),
+                IPAddress(ipaddress.IPv4Address("192.168.0.1"))
+            ]
+        )
+
+        self.assertEqual(self.ca_handler.enroll(csr), ((None, None, None, 'R123456789')))
+        mock_get.assert_called_once_with("ca=CA2", cert=("", ""))
+
+    @patch('acme_srv.kos_ca_handler.requests.get')
+    def test__004(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "<kos-gateway><req-detail><reqID>R123456789</reqID></req-detail></kos-gateway>"
+        mock_get.return_value = mock_response
+
+        self.ca_handler.email = 'hoge@hoge.com'
+
+        csr = self.create_csr(
+            [
+                x509.NameAttribute(NameOID.COMMON_NAME, "sample.com"),
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "JP"),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Tokyo"),
+                x509.NameAttribute(NameOID.LOCALITY_NAME, "Chiyoda-ku"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Example Organization")
+            ],
+            [
+                DNSName('www1.hoge.com'),
+                DNSName('www2.hoge.com'),
+                IPAddress(ipaddress.IPv4Address("192.168.0.1")),
+                IPAddress(ipaddress.IPv6Address("2001:DB8::8:800:200C:417A"))
+            ]
+        )
+
+        self.assertEqual(self.ca_handler.enroll(csr), ((None, None, None, 'R123456789')))
+        mock_get.assert_called_once_with("ca=CA2", cert=("", ""))
