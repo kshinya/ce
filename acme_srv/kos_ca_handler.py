@@ -32,6 +32,7 @@ class CAhandler(object):
         self.kos_gw_url = None
         self.client_cert = None
         self.client_key = None
+        self.email = ""
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -169,8 +170,8 @@ class CAhandler(object):
         subject_dict = {attribute.oid._name: attribute.value for attribute in csr_object.subject}
 
         san = csr_san_get(self.logger, csr)
-        dns_names =  [item[4:] for item in san if item.startswith('DNS:')]
-        ip_addresses =  [item[3:] for item in san if item.startswith('IP:')]
+        dns_names = [item[4:] for item in san if item.startswith('DNS:')]
+        ip_addresses = [item[3:] for item in san if item.startswith('IP:')]
 
         self.logger.debug('dns_names : %s', dns_names)
         self.logger.debug('ip_addresses : %s', ip_addresses)
@@ -188,6 +189,18 @@ class CAhandler(object):
         }
         return ",".join(f"{key}={value}" for key, value in dname_param.items() if value)
 
+    def _load_account_email(self, csr: str):
+        certificates = header_info_get(self.logger, csr, ('id', 'name', 'order__id', 'order__account__contact'))
+        self.logger.debug("certificates: %s", certificates)
+
+        try:
+            if len(certificates):
+                emails = json.loads(certificates[0]['order__account__contact'])
+                if emails:
+                    self.email = emails[0].replace('mailto:', '')
+        except json.JSONDecodeError as e:
+            self.logger.error('invalid email address', e)
+
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate  """
         self.logger.debug('CAhandler.enroll()')
@@ -197,26 +210,15 @@ class CAhandler(object):
         poll_indentifier = None
 
         cn = csr_cn_get(self.logger, csr)
-
-        certificates = header_info_get(self.logger, csr, ('id', 'name', 'order__id', 'order__account__contact'))
-
         self.logger.debug("cn: %s", cn)
-        self.logger.debug("certificates: %s", certificates)
 
-        email = ""
-        try:
-            if len(certificates):
-                emails = json.loads(certificates[0]['order__account__contact'])
-                if emails:
-                    email = emails[0].replace('mailto:', '')
-        except json.JSONDecodeError as e:
-            self.logger.error('invalid email address', e)
+        self._load_account_email(csr)
 
         if not cn:
             error = self.err_msg_dic['badcsr']
         else:
             dname = self._create_dname(csr)
-            query_data = self._request_cert_query_data(csr, dname, email)
+            query_data = self._request_cert_query_data(csr, dname, self.email)
             (error, response_data) = self._request(query_data)
             if not error:
                 poll_indentifier = response_data['kos-gateway']['req-detail']['reqID']
