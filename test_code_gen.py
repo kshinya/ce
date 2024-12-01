@@ -1,5 +1,5 @@
 # pip install autopep8 pandas
-
+# python test_code_gen.py
 import autopep8
 import re
 import pandas as pd
@@ -135,7 +135,7 @@ def main():
         }
         function_name = f"test_{params['name']}"
         print('------作成パラメータ------')
-        print(f"python manage.py test --keepdb acme_srv.tests.test_kos_ca_handler.KosCaHandlerTest.{function_name}")
+        print(f"python manage.py test --keepdb tests.test_kos_ca_handler.KosCaHandlerTest.{function_name}")
         print(f"テスト関数名 {function_name}")
         print(json.dumps(record, indent=4, ensure_ascii=False))
         print('\n\n\n')
@@ -149,10 +149,10 @@ def main():
     # with open('test_code.py', 'w', encoding='utf-8') as file:
     #     file.write(test_code)
 
-    with open('acme_srv/tests/test_base.py', 'r', encoding='utf-8') as file:
+    with open('tests/test_base.py', 'r', encoding='utf-8') as file:
         base_test_code = file.read()
 
-    with open('acme_srv/tests/test_kos_ca_handler.py', 'w', encoding='utf-8') as file:
+    with open('tests/test_kos_ca_handler.py', 'w', encoding='utf-8') as file:
         # file.write(base_test_code + test_code)
         file.write(autopep8.fix_code(f"{base_test_code + test_code}", options={'max_line_length': 150}))
 

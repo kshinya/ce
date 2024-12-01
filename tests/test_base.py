@@ -1,5 +1,3 @@
-from http.client import responses
-
 from django.test import TestCase
 import base64
 
