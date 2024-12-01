@@ -14,7 +14,7 @@ def template(name: str, email: str, names: [str], san: [str], mock_response: [st
     if mock_response is None:
         mock_response = []
 
-        # \t  # python manage.py test --keepdb acme_srv.tests.test_kos_ca_handler.KosCaHandlerTest.test__{name}
+
     return f'''
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test_{name}(self,mock_get):
@@ -133,8 +133,10 @@ def main():
             'asserts': asserts,
             'mock_response': mock_response,
         }
+        function_name = f"test_{params['name']}"
         print('------作成パラメータ------')
-        print(f"テスト関数名 test_{params['name']}")
+        print(f"python manage.py test --keepdb acme_srv.tests.test_kos_ca_handler.KosCaHandlerTest.{function_name}")
+        print(f"テスト関数名 {function_name}")
         print(json.dumps(record, indent=4, ensure_ascii=False))
         print('\n\n\n')
 
