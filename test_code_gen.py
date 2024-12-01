@@ -7,17 +7,16 @@ import ipaddress
 import json
 from itertools import chain
 
-from past.builtins.noniterators import flatmap
-
-
 def template(name: str, email: str, names: [str], san: [str], mock_response: [str],
              asserts: [str]):
     if asserts is None:
         asserts = []
     if mock_response is None:
         mock_response = []
+
+        # \t  # python manage.py test --keepdb acme_srv.tests.test_kos_ca_handler.KosCaHandlerTest.test__{name}
     return f'''
-@patch('acme_srv.kos_ca_handler.requests.get')
+    @patch('acme_srv.kos_ca_handler.requests.get')
     def test_{name}(self,mock_get):
         mock_response = MagicMock()
         {"\n".join(mock_response)}
@@ -26,15 +25,14 @@ def template(name: str, email: str, names: [str], san: [str], mock_response: [st
         
         csr = self.create_csr(
         [
-            {",\n".join(names)}
+            {",\n".join(list(map(lambda line:f"        {line}",names)))}
         ], 
         [
-            {",\n".join(san)}
+            {",\n".join(list(map(lambda line:f"        {line}",san)))}
         ]
         )
         
         {"\n".join(asserts)}
-        
         
 '''
 
@@ -114,17 +112,17 @@ def main():
 
             if request_query:
                 asserts += [
-                    f"\t\tmock_get.assert_called_once_with('{request_query}', cert=('', ''))"
+                    f"        mock_get.assert_called_once_with('{request_query}', cert=('', ''))"
                 ]
 
         if server_response:
             mock_response += [
-                f"\t\tmock_response.text = '{server_response}'",
+                f"        mock_response.text = '{server_response}'",
             ]
 
         if len(mock_response):
             mock_response += [
-                f"\t\tmock_get.return_value = mock_response",
+                f"        mock_get.return_value = mock_response",
             ]
 
         params = {
@@ -140,10 +138,23 @@ def main():
         print(json.dumps(record, indent=4, ensure_ascii=False))
         print('\n\n\n')
 
-        test_codes.append(autopep8.fix_code(template(**params), options={'max_line_length': 150}))
+        # test_codes.append(autopep8.fix_code(template(**params), options={'max_line_length': 150}))
+        test_codes.append(template(**params))
 
-    with open('test_code.py', 'w', encoding='utf-8') as file:
-        file.write("\n".join(test_codes))
+    # test_code = "\n".join(list(map(lambda code:f"\t\t{code}" ,test_codes)))
+    test_code = "\n".join(test_codes)
+
+    # with open('test_code.py', 'w', encoding='utf-8') as file:
+    #     file.write(test_code)
+
+    with open('acme_srv/tests/test_base.py', 'r', encoding='utf-8') as file:
+        base_test_code = file.read()
+
+    with open('acme_srv/tests/test_kos_ca_handler.py', 'w', encoding='utf-8') as file:
+        # file.write(base_test_code + test_code)
+        file.write(autopep8.fix_code(f"{base_test_code + test_code}", options={'max_line_length': 150}))
+
+
 
 
 if __name__ == '__main__':
