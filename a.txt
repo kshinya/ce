@@ -1,0 +1,5 @@
+django
+django_database_prefix
+pysocks
+var_dump
+xmltodict

@@ -1,0 +1,18 @@
+version: '3'
+services:
+  mysql:
+    container_name: acme-mysql
+    build: ./mysql
+    environment:
+      MYSQL_DATABASE: acme2certifier
+      MYSQL_USER: acme2certifier
+      #MYSQL_USERのパスワード
+      MYSQL_PASSWORD: acme2certifier1234
+      # MySQLにおけるスーパーユーザであるrootアカウントに設定するためのパスワード
+      MYSQL_ROOT_PASSWORD: acme2certifierdevelop
+    ports:
+      - "43306:3306"
+    volumes:
+      - ./mysql/var_lib_mysql:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+

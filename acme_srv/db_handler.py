@@ -12,7 +12,7 @@ from typing import List, Tuple, Dict
 def initialize():  # nopep8
     """ initialize routine when calling dbstore functions from script """
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "djangoProject.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
     import django
     # pylint: disable=E1101
     django.setup()

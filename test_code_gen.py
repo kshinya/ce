@@ -14,7 +14,6 @@ def template(name: str, email: str, names: [str], san: [str], mock_response: [st
     if mock_response is None:
         mock_response = []
 
-
     return f'''
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test_{name}(self,mock_get):

@@ -61,9 +61,8 @@ class KosCaHandlerTest(TestCase):
         # self.logger = logger_setup(self.debug)
         import logging
         from acme_srv.kos_ca_handler import CAhandler
-
         logging.basicConfig(level=logging.CRITICAL)
-        self.logger = logging.getLogger('test_a2c')
+        self.logger = logging.getLogger("django.tests")
 
         with CAhandler(self.debug, self.logger) as ca_handler:
             self.ca_handler = ca_handler
