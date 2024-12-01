@@ -153,7 +153,7 @@ LOGGING = {
         'file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': 'django_queries.log',  # Choose a file name and path
+            'filename': 'queries.log',  # Choose a file name and path
         },
         'test': {
             'level': 'DEBUG',
@@ -167,10 +167,10 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
-        'django.tests': {
+        'acme2certifier': {
             'handlers': ['console', 'test'],
             'level': 'DEBUG',
-            'propagate': False,
+            'propagate': True,
         },
     },
 }

@@ -1,17 +1,17 @@
-from django.test import TestCase
 import base64
-
-from cryptography.x509 import DNSName, IPAddress
-from acme_srv.helper import logger_setup
+import ipaddress
+from unittest.mock import patch, MagicMock
 
 from cryptography import x509
-from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
-import ipaddress
-import unittest
-from unittest.mock import patch, mock_open, Mock, MagicMock
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509 import DNSName, IPAddress
+from cryptography.x509.oid import NameOID
+from django.test import TestCase
+
+from acme_srv.helper import logger_setup
+from acme_srv.kos_ca_handler import CAhandler
 
 key = '''-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCyxHJnsYKp/Zzv
@@ -58,11 +58,10 @@ class KosCaHandlerTest(TestCase):
         #     key_size=2048,
         # )
 
-        # self.logger = logger_setup(self.debug)
-        import logging
-        from acme_srv.kos_ca_handler import CAhandler
-        logging.basicConfig(level=logging.CRITICAL)
-        self.logger = logging.getLogger("django.tests")
+        self.logger = logger_setup(self.debug)
+        # import logging
+        # logging.basicConfig(level=logging.CRITICAL)
+        # self.logger = logging.getLogger("django.test")
 
         with CAhandler(self.debug, self.logger) as ca_handler:
             self.ca_handler = ca_handler
@@ -121,6 +120,7 @@ class KosCaHandlerTest(TestCase):
 
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test__001(self, mock_get):
+        self.logger.debug("\n\n-------テストを開始します @_001-------")
         mock_response = MagicMock()
 
         self.ca_handler.email = 'hoge@hoge.com'
@@ -161,8 +161,11 @@ class KosCaHandlerTest(TestCase):
 
         self.assertEqual(self.ca_handler.enroll(csr), (('urn:ietf:params:acme:error:badCSR', None, None, None)))
 
+        self.logger.debug("-------テストを終了します @_001-------")
+
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test__002(self, mock_get):
+        self.logger.debug("\n\n-------テストを開始します @_002-------")
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.text = '<kos-gateway><req-detail><reqID>R123456789</reqID></req-detail></kos-gateway>'
@@ -208,8 +211,11 @@ class KosCaHandlerTest(TestCase):
         self.assertEqual(self.ca_handler.enroll(csr), ((None, None, None, 'R123456789')))
         mock_get.assert_called_once_with('ca=CA2', cert=('', ''))
 
+        self.logger.debug("-------テストを終了します @_002-------")
+
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test__003(self, mock_get):
+        self.logger.debug("\n\n-------テストを開始します @_003-------")
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.text = '<kos-gateway><req-detail><reqID>R123456789</reqID></req-detail></kos-gateway>'
@@ -253,8 +259,11 @@ class KosCaHandlerTest(TestCase):
         self.assertEqual(self.ca_handler.enroll(csr), ((None, None, None, 'R123456789')))
         mock_get.assert_called_once_with('ca=CA2', cert=('', ''))
 
+        self.logger.debug("-------テストを終了します @_003-------")
+
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test__004(self, mock_get):
+        self.logger.debug("\n\n-------テストを開始します @_004-------")
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.text = '<kos-gateway><req-detail><reqID>R123456789</reqID></req-detail></kos-gateway>'
@@ -280,3 +289,5 @@ class KosCaHandlerTest(TestCase):
 
         self.assertEqual(self.ca_handler.enroll(csr), ((None, None, None, 'R123456789')))
         mock_get.assert_called_once_with('ca=CA2', cert=('', ''))
+
+        self.logger.debug("-------テストを終了します @_004-------")

@@ -1,17 +1,17 @@
-from django.test import TestCase
 import base64
-
-from cryptography.x509 import DNSName, IPAddress
-from acme_srv.helper import logger_setup
+import ipaddress
+from unittest.mock import patch, MagicMock
 
 from cryptography import x509
-from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
-import ipaddress
-import unittest
-from unittest.mock import patch, mock_open, Mock, MagicMock
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509 import DNSName, IPAddress
+from cryptography.x509.oid import NameOID
+from django.test import TestCase
+
+from acme_srv.helper import logger_setup
+from acme_srv.kos_ca_handler import CAhandler
 
 key = '''-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCyxHJnsYKp/Zzv
@@ -58,11 +58,10 @@ class KosCaHandlerTest(TestCase):
         #     key_size=2048,
         # )
 
-        # self.logger = logger_setup(self.debug)
-        import logging
-        from acme_srv.kos_ca_handler import CAhandler
-        logging.basicConfig(level=logging.CRITICAL)
-        self.logger = logging.getLogger("django.test")
+        self.logger = logger_setup(self.debug)
+        # import logging
+        # logging.basicConfig(level=logging.CRITICAL)
+        # self.logger = logging.getLogger("django.test")
 
         with CAhandler(self.debug, self.logger) as ca_handler:
             self.ca_handler = ca_handler

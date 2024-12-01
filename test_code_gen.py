@@ -17,6 +17,7 @@ def template(name: str, email: str, names: [str], san: [str], mock_response: [st
     return f'''
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test_{name}(self,mock_get):
+        self.logger.debug("\\n\\n-------テストを開始します @{name}-------")
         mock_response = MagicMock()
         {"\n".join(mock_response)}
         
@@ -32,6 +33,8 @@ def template(name: str, email: str, names: [str], san: [str], mock_response: [st
         )
         
         {"\n".join(asserts)}
+        
+        self.logger.debug("-------テストを終了します @{name}-------\\n\\n")
         
 '''
 
