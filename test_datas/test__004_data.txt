@@ -1,0 +1,11 @@
+[
+    "<NameAttribute(oid=<ObjectIdentifier(oid=2.5.4.3, name=commonName)>, value='sample.com')>",
+    "<NameAttribute(oid=<ObjectIdentifier(oid=2.5.4.6, name=countryName)>, value='JP')>",
+    "<NameAttribute(oid=<ObjectIdentifier(oid=2.5.4.8, name=stateOrProvinceName)>, value='Tokyo')>",
+    "<NameAttribute(oid=<ObjectIdentifier(oid=2.5.4.7, name=localityName)>, value='Chiyoda-ku')>",
+    "<NameAttribute(oid=<ObjectIdentifier(oid=2.5.4.10, name=organizationName)>, value='Example Organization')>",
+    "<DNSName(value='www1.hoge.com')>",
+    "<DNSName(value='www2.hoge.com')>",
+    "<IPAddress(value=192.168.0.1)>",
+    "<IPAddress(value=2001:db8::8:800:200c:417a)>"
+]
