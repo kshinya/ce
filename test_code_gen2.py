@@ -12,7 +12,16 @@ def template(name: str, csr_path:str):
     return f'''
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test_{name}(self,mock_get):
-        self.logger.debug("\\n\\n-------テストを開始します @{name}-------")
+    
+    
+        fileHandler = logging.FileHandler(f"{name}.log")
+        logger = logger_setup(True)
+        logger.addHandler(fileHandler)
+        
+        with CAhandler(True, logger) as ca_handler:
+            self.ca_handler = ca_handler
+        
+        logger.debug("\\n\\n-------テストを開始します @{name}-------")
         req_id = 'AA***AA'
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -35,7 +44,7 @@ def template(name: str, csr_path:str):
             'https://localhost',
             cert=('', '')
         )
-        self.logger.debug("-------テストを終了します @{name}-------\\n\\n")
+        logger.debug("-------テストを終了します @{name}-------\\n\\n")
 '''
 
 
