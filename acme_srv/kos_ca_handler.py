@@ -2,6 +2,7 @@
 """ skeleton for customized CA handler """
 from __future__ import print_function
 
+import urllib.parse
 from cryptography.x509 import IPAddress
 
 # pylint: disable=e0401
@@ -79,6 +80,7 @@ class CAhandler(object):
         try:
             query = '&'.join([f"{k}={v.encode('shift_jis').decode('latin1')}" for k, v in query_data.items()])
             full_url = f"{self.kos_gw_url}?{query}"
+            self.logger.debug("URL : %s", full_url)
             if self.kos_gw_url:
                 response = requests.get(full_url, cert=(self.client_cert, self.client_key))
                 if response.status_code == 200:
@@ -187,6 +189,14 @@ class CAhandler(object):
             'dNSName': self._prepare_dns_names(dns_names, cn),
             'IPAddress': self._get_ipv4(ip_addresses)
         }
+
+        print("@@@@@@@@@@@@@@@@@")
+        print(urllib.parse.quote_plus(urllib.parse.urlencode(dname_param)))
+        print("@@@@@@@@@@@@@@@@@")
+
+        return urllib.parse.quote_plus(urllib.parse.urlencode(dname_param))
+        return urllib.parse.urlencode(dname_param)
+        return ','.join([f"{k}={v.encode('shift_jis').decode('latin1')}" for k, v in dname_param.items()])
         return ",".join(f"{key}={value}" for key, value in dname_param.items() if value)
 
     def _load_account_email(self, csr: str):

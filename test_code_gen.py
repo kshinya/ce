@@ -73,7 +73,7 @@ def expand_ip(values):
 def main():
     print("テストコード生成しています...")
     test_codes: [str] = []
-    file_path = './test_gen.tsv'
+    file_path = 'test_gen2.tsv'
     data = pd.read_csv(file_path, sep='\t', keep_default_na=False)
     data_dict = data.to_dict(orient='records')
     for record in data_dict:

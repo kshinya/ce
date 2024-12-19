@@ -119,6 +119,33 @@ class KosCaHandlerTest(TestCase):
         )
 
     @patch('acme_srv.kos_ca_handler.requests.get')
+    def test2(self, mock_get):
+        req_id = 'AA***AA'
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = f"<kos-gateway><req-detail><reqID>{req_id}</reqID></req-detail></kos-gateway>"
+        mock_get.return_value = mock_response
+        csr_path = "test_datas/test__004.csr"
+        email = "hogehoge@hoge.com"
+        base64csr = None
+        with open(csr_path, 'rb') as f:
+            csr_data = f.read()
+            csr = x509.load_pem_x509_csr(csr_data)
+            der_csr = csr.public_bytes(serialization.Encoding.DER)
+            base64csr = base64.b64encode(der_csr).decode('utf-8')
+
+        dname = self.ca_handler._create_dname(base64csr)
+        query_data = self.ca_handler._request_cert_query_data(base64csr, dname, email)
+        self.ca_handler._request(query_data)
+
+        mock_get.assert_called_once_with(
+            'https://localhost',
+            cert=('', '')
+        )
+
+        # self.assertEqual(req, None)
+
+    @patch('acme_srv.kos_ca_handler.requests.get')
     def test__001(self, mock_get):
         self.logger.debug("\n\n-------テストを開始します @_001-------")
         mock_response = MagicMock()
@@ -161,7 +188,7 @@ class KosCaHandlerTest(TestCase):
 
         self.assertEqual(self.ca_handler.enroll(csr), (('urn:ietf:params:acme:error:badCSR', None, None, None)))
 
-        self.logger.debug("-------テストを終了します @_001-------")
+        self.logger.debug("-------テストを終了します @_001-------\n\n")
 
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test__002(self, mock_get):
@@ -211,7 +238,7 @@ class KosCaHandlerTest(TestCase):
         self.assertEqual(self.ca_handler.enroll(csr), ((None, None, None, 'R123456789')))
         mock_get.assert_called_once_with('ca=CA2', cert=('', ''))
 
-        self.logger.debug("-------テストを終了します @_002-------")
+        self.logger.debug("-------テストを終了します @_002-------\n\n")
 
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test__003(self, mock_get):
@@ -259,7 +286,7 @@ class KosCaHandlerTest(TestCase):
         self.assertEqual(self.ca_handler.enroll(csr), ((None, None, None, 'R123456789')))
         mock_get.assert_called_once_with('ca=CA2', cert=('', ''))
 
-        self.logger.debug("-------テストを終了します @_003-------")
+        self.logger.debug("-------テストを終了します @_003-------\n\n")
 
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test__004(self, mock_get):
@@ -290,4 +317,4 @@ class KosCaHandlerTest(TestCase):
         self.assertEqual(self.ca_handler.enroll(csr), ((None, None, None, 'R123456789')))
         mock_get.assert_called_once_with('ca=CA2', cert=('', ''))
 
-        self.logger.debug("-------テストを終了します @_004-------")
+        self.logger.debug("-------テストを終了します @_004-------\n\n")

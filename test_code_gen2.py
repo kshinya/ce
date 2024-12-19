@@ -7,27 +7,29 @@ import ipaddress
 import json
 from itertools import chain
 
-def template(name: str, csr_path:str):
-
+def template(name: str, csr_path:str, ca_id:str,policy_id:str,stage_id:str,email:str):
     return f'''
     @patch('acme_srv.kos_ca_handler.requests.get')
     def test_{name}(self,mock_get):
     
     
-        fileHandler = logging.FileHandler(f"{name}.log")
+        file_handler = logging.FileHandler(f"test_logs/{name}.log")
         logger = logger_setup(True)
-        logger.addHandler(fileHandler)
+        logger.addHandler(file_handler)
         
         with CAhandler(True, logger) as ca_handler:
             self.ca_handler = ca_handler
         
         logger.debug("\\n\\n-------テストを開始します @{name}-------")
-        req_id = 'AA***AA'
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.text = f"<kos-gateway><req-detail><reqID>AAAA</reqID></req-detail></kos-gateway>"
         mock_get.return_value = mock_response
-        email = "hogehoge@hoge.com"
+
+        self.ca_handler.ca_id = "{ca_id}"
+        self.ca_handler.policy_id = "{policy_id}"
+        self.ca_handler.stage_id = "{stage_id}"
+        email = "{email}"
         base64csr = None
         with open('{csr_path}', 'rb') as f:
             csr_data = f.read()
@@ -51,14 +53,24 @@ def template(name: str, csr_path:str):
 def main():
     print("テストコード生成しています...")
     test_codes: [str] = []
-    files: [str] = ['san2_aaaa.CSR']
-
-    for file in files:
-        name = file.replace(".CSR","")
+    file_path = 'test_gen.tsv'
+    data = pd.read_csv(file_path, sep='\t', keep_default_na=False)
+    data_dict = data.to_dict(orient='records')
+    for record in data_dict:
+        no = record.get('no')
+        name = f'{no.replace(".","_")}'
         function_name = f"test_{name}"
         print(f"テスト関数名 {function_name}")
-        print('\n\n\n')
-        test_codes.append(template(name,f'./test_csr/{file}'))
+        params = {
+            'name':name,
+            'csr_path':f'./test_csr/san{name}.CSR',
+            'ca_id': record.get('caID',""),
+            'policy_id': record.get('policyID',""),
+            'stage_id': record.get('stageID',""),
+            'email': record.get('account'),
+        }
+
+        test_codes.append(template(**params))
 
     test_code = "\n".join(test_codes)
 

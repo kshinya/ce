@@ -1,4 +1,4 @@
-no	kos_gw_url	caID	policyID	stageID	account	cn	c	s	l	o	dns	ip	status	server_response	request_query	check_value
+name	kos_gw_url	ca_id	policy_id	stage_id	email	cn	c	s	l	o	dns	ip	status	server_response	request_query	check_value
 _001	https://localhost/	CA2	ACME	aeac	hoge@hoge.com		JP	Tokyo	Chiyoda-ku	Example Organization	www1.hoge.com,www2.hoge.com,www[1...20].hoge.com	192.168.0.1			ca=CA2	('urn:ietf:params:acme:error:badCSR', None, None,None)
 _002	https://localhost/	CA2	ACME	aeac	hoge@hoge.com	sample.com	JP	Tokyo	Chiyoda-ku	Example Organization	www1.hoge.com,www2.hoge.com,www[01...20].hoge.com	192.168.0.1	200	<kos-gateway><req-detail><reqID>R123456789</reqID></req-detail></kos-gateway>	ca=CA2	(None, None, None,'R123456789')
 _003	https://localhost/	CA2	ACME	aeac	hoge@hoge.com	sample.com	JP	Tokyo	Chiyoda-ku	Example Organization	www[1...20].hoge.com	192.168.0.1	200	<kos-gateway><req-detail><reqID>R123456789</reqID></req-detail></kos-gateway>	ca=CA2	(None, None, None,'R123456789')
